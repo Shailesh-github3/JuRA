@@ -1,4 +1,4 @@
-# JuRA — Juristic Retrieval-Augmented Intelligence
+# JuRA - Juristic Retrieval-Augmented Intelligence
 
 > An evidence-backed Indian legal awareness & case-preparation engine powered by Hybrid Retrieval (BM25 + Qdrant), Cross-Encoder Reranking, and Deterministic Citation Verification.
 
@@ -14,7 +14,7 @@
 ### Engineering Highlights
 
 - **4,704 Structure-Aware Chunks** indexed across 6 Indian legal texts (Constitution of India 2026, BNS, BNSS, BSA, IPC, CrPC) with `CURRENT` / `SUPERSEDED` / `REPEALED` lifecycle filtering.
-- **+65.7% MRR Lift (`0.533 → 0.883`)** and **5× Exact Lookup Gain (`0.167 → 0.833 R@1`)** empirically benchmarked across a 30-query legal evaluation suite.
+- **+65.7% MRR Lift (`0.533 -> 0.883`)** and **5x Exact Lookup Gain (`0.167 -> 0.833 R@1`)** empirically benchmarked across a 30-query legal evaluation suite.
 - **Zero-Hallucination Citation Verifier:** programmatically maps `[N]` markers strictly to retrieved Qdrant chunk metadata and strips ungrounded references before returning responses.
 - **Multi-Turn Clarification Loop:** detects missing legal triggers in real-life disputes and asks targeted follow-up questions before retrieving statutes.
 
@@ -22,7 +22,7 @@
 
 ## Problem & Solution
 
-Naive LLMs fail on Indian law in predictable ways: they invent section numbers, break clause boundaries, and silently conflate repealed IPC/CrPC provisions with active BNS/BNSS/BSA replacements. JuRA replaces free-form generation with a grounded pipeline — structure-aware chunking preserves article/section boundaries, hybrid retrieval (BM25 + dense Qdrant + RRF) finds exact provisions, a cross-encoder reranker lifts the right one to rank 1, and a deterministic verifier attaches citations only from retrieved chunk metadata. The result: every answer is traceable to a real page of a real statute, or the system refuses to answer.
+Naive LLMs fail on Indian law in predictable ways: they invent section numbers, break clause boundaries, and silently conflate repealed IPC/CrPC provisions with active BNS/BNSS/BSA replacements. JuRA replaces free-form generation with a grounded pipeline - structure-aware chunking preserves article/section boundaries, hybrid retrieval (BM25 + dense Qdrant + RRF) finds exact provisions, a cross-encoder reranker lifts the right one to rank 1, and a deterministic verifier attaches citations only from retrieved chunk metadata. The result: every answer is traceable to a real page of a real statute, or the system refuses to answer.
 
 ---
 
@@ -97,7 +97,7 @@ flowchart TD
 ## Deep-Dive Architecture Diagrams
 
 <details>
-<summary><b>Database Schema (ER Diagram — PostgreSQL 16)</b></summary>
+<summary><b>Database Schema (ER Diagram - PostgreSQL 16)</b></summary>
 
 ```mermaid
 erDiagram
@@ -205,7 +205,7 @@ sequenceDiagram
 
 ### Key Engineering Decisions
 
-- **Why Hybrid + Reranking:** Dense embeddings (all-MiniLM-L6-v2) match concepts but lose exact numerals — "Article 14" retrieved Articles 228, 21, 137. BM25 finds the numeral; RRF keeps both signals without either dominating; the cross-encoder reads (query, passage) jointly and lifts Recall@1 from 0.533 to 0.833.
+- **Why Hybrid + Reranking:** Dense embeddings (all-MiniLM-L6-v2) match concepts but lose exact numerals - "Article 14" retrieved Articles 228, 21, 137. BM25 finds the numeral; RRF keeps both signals without either dominating; the cross-encoder reads (query, passage) jointly and lifts Recall@1 from 0.533 to 0.833.
 - **Why Deterministic Citation Verification:** The LLM is instructed to cite only with bracket numbers `[1]..[N]`. `rag_service.verify_citations()` maps each `[N]` to `chunks[N-1]` and builds `Citation` objects exclusively from retrieved chunk metadata; out-of-range markers are stripped and logged. An invented citation can never reach the user.
 - **Why Dual-Service (Spring Boot + Python):** Java owns auth, sessions, bookmarks, and PostgreSQL persistence with Flyway + JWT; Python owns the ML stack (embeddings, Qdrant, BM25, cross-encoder, Gemini). The two communicate via a narrow JSON contract (`RagQueryRequest` / `RagResponseDto`), so either side can evolve independently.
 
@@ -314,37 +314,37 @@ Python engine: `GET /health`, `POST /query` (body: `{query, limit, document_type
 
 ```
 JuRA/
-├── backend/                          # Spring Boot 3.4 (Java 21)
-│   ├── pom.xml
-│   └── src/main/java/com/jura/jura_backend/
-│       ├── client/                   # PythonRagClient (RestClient)
-│       ├── config/                   # Security, OpenAPI
-│       ├── controller/               # Auth, Chat, Bookmarks, LegalItems, User, Health
-│       ├── dto/                      # Request/Response DTOs (rag, chat, auth, ...)
-│       ├── entity/                   # JPA entities (User, ChatSession, ChatMessage, ...)
-│       ├── exception/                # GlobalExceptionHandler
-│       ├── repository/               # Spring Data JPA repos
-│       ├── security/                 # JWT filter + service
-│       └── service/                  # AuthService, ChatService, BookmarkService, ...
-│   └── src/main/resources/db/migration/   # V1 schema, V2 seed data
-├── python-ai-engine/
-│   ├── app/
-│   │   ├── config/settings.py
-│   │   ├── embeddings/               # all-MiniLM-L6-v2 (384-dim, truncation-safe)
-│   │   ├── ingestion/                # PDF loader, cleaner, structure-aware chunker
-│   │   ├── models/                   # Chunk, Document, RagResponse, ChatTurn, ExtractedFacts
-│   │   ├── rag/                      # prompt_builder, rag_service, fact_extractor
-│   │   ├── retrieval/                # retriever (hybrid+RRF+rerank), bm25_index, reranker
-│   │   └── vectorstore/              # Qdrant client
-│   ├── scripts/                      # ingest_documents, search_documents, evaluate_retrieval
-│   ├── eval/gold_queries.json        # 30-query gold set
-│   ├── tests/                        # 100 pytest tests
-│   ├── legal-data/                   # 6 legal PDFs (Constitution, BNS, BNSS, BSA, CrPC, IPC)
-│   ├── ui.py                         # Streamlit demo
-│   ├── requirements.txt
-│   └── .env.example
-├── docker-compose.yml                # Qdrant + PostgreSQL 16
-└── README.md
++-- backend/                          # Spring Boot 3.4 (Java 21)
+|   +-- pom.xml
+|   +-- src/main/java/com/jura/jura_backend/
+|       +-- client/                   # PythonRagClient (RestClient)
+|       +-- config/                   # Security, OpenAPI
+|       +-- controller/               # Auth, Chat, Bookmarks, LegalItems, User, Health
+|       +-- dto/                      # Request/Response DTOs (rag, chat, auth, ...)
+|       +-- entity/                   # JPA entities (User, ChatSession, ChatMessage, ...)
+|       +-- exception/                # GlobalExceptionHandler
+|       +-- repository/               # Spring Data JPA repos
+|       +-- security/                 # JWT filter + service
+|       +-- service/                  # AuthService, ChatService, BookmarkService, ...
+|   +-- src/main/resources/db/migration/   # V1 schema, V2 seed data
++-- python-ai-engine/
+|   +-- app/
+|   |   +-- config/settings.py
+|   |   +-- embeddings/               # all-MiniLM-L6-v2 (384-dim, truncation-safe)
+|   |   +-- ingestion/                # PDF loader, cleaner, structure-aware chunker
+|   |   +-- models/                   # Chunk, Document, RagResponse, ChatTurn, ExtractedFacts
+|   |   +-- rag/                      # prompt_builder, rag_service, fact_extractor
+|   |   +-- retrieval/                # retriever (hybrid+RRF+rerank), bm25_index, reranker
+|   |   +-- vectorstore/              # Qdrant client
+|   +-- scripts/                      # ingest_documents, search_documents, evaluate_retrieval
+|   +-- eval/gold_queries.json        # 30-query gold set
+|   +-- tests/                        # 100 pytest tests
+|   +-- legal-data/                   # 6 legal PDFs (Constitution, BNS, BNSS, BSA, CrPC, IPC)
+|   +-- ui.py                         # Streamlit demo
+|   +-- requirements.txt
+|   +-- .env.example
++-- docker-compose.yml                # Qdrant + PostgreSQL 16
++-- README.md
 ```
 
 ### Test Suite
@@ -365,4 +365,4 @@ JuRA is an **educational legal-awareness and case-preparation tool**. It is **no
 
 ---
 
-*Built with grounded retrieval, verified citations, and empirical benchmarking — every claim in this README is backed by code and tests.*
+*Built with grounded retrieval, verified citations, and empirical benchmarking - every claim in this README is backed by code and tests.*
