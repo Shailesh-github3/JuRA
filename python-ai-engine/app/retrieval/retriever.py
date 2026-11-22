@@ -21,7 +21,7 @@ dense-only for ablation.
 from app.config.settings import settings
 from app.embeddings.embedding_service import embed_query
 from app.models.chunk import Chunk, DocumentType, LegalStatus
-from app.retrieval import bm25_index
+from app.retrieval import bm25_index, reranker
 from app.vectorstore import qdrant_service
 
 
@@ -109,4 +109,11 @@ def retrieve(
         chunks_by_id[chunk.id] = chunk
 
     ordered_ids = sorted(fused, key=lambda cid: fused[cid], reverse=True)
-    return [chunks_by_id[cid] for cid in ordered_ids[:limit]]
+    fused_candidates = [chunks_by_id[cid] for cid in ordered_ids]
+
+    # Optional second stage: cross-encoder rerank over the fused candidates.
+    if settings.RERANKER_ENABLED:
+        candidate_k = max(limit, settings.RERANKER_CANDIDATE_K)
+        return reranker.rerank(query, fused_candidates[:candidate_k], top_k=limit)
+
+    return fused_candidates[:limit]

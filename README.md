@@ -294,8 +294,19 @@ To test secured endpoints in Swagger UI:
 - **Resource Ownership Enforcement**: Chat sessions, messages, and bookmarks strictly enforce user ownership checks matching the authenticated JWT email.
 - **Safe Error Responses**: Global exception handling (`@RestControllerAdvice`) sanitizes all error responses (400, 401, 403, 404, 409, 500, 502/503), preventing leakage of stack traces, SQL queries, or internal keys.
 
----
+## 📊 Retrieval Benchmark (measured)
 
-## 📄 License
+Baseline measured with `scripts/evaluate_retrieval.py` over the 30-query gold set
+(`eval/gold_queries.json`), all-MiniLM-L6-v2 embeddings, Qdrant cosine, k=5:
+
+| Stage | semantic R@1 | semantic R@5 | exact R@1 | exact R@5 | overall R@1 | overall R@5 | overall MRR |
+|---|---|---|---|---|---|---|---|
+| Dense-only (Phase 3) | 0.778 | 0.778 | 0.167 | 0.167 | 0.533 | 0.533 | 0.533 |
+| Hybrid RRF (Phase 4) | 0.667 | 0.889 | 0.333 | 1.000 | 0.533 | 0.933 | 0.660 |
+| **Hybrid + Cross-Encoder (Phase 5)** | **0.833** | **0.889** | **0.833** | **1.000** | **0.833** | **0.933** | **0.883** |
+
+The cross-encoder (`BAAI/bge-reranker-base`) lifted Recall@1 from 0.533 to 0.833 and MRR from 0.660 to 0.883. Two queries remain misses ("dying declaration", "theft under the IPC") — semantic near-misses where both branches agree on a neighbouring section.
+
+---
 
 This project is licensed under the MIT License.

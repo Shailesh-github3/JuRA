@@ -137,6 +137,28 @@ class Settings:
     HYBRID_CANDIDATE_MULTIPLIER: int = int(os.getenv("HYBRID_CANDIDATE_MULTIPLIER", "4"))
 
 
+    # -------------------------------------------------------------
+    # CROSS-ENCODER RERANKER (second stage over RRF candidates)
+    # -------------------------------------------------------------
+
+    # When True, retrieve() re-scores the fused RRF candidates with a
+    # cross-encoder (BAAI/bge-reranker-base) and returns the top `limit`.
+    # Cross-encoders read (query, passage) jointly and are far more
+    # accurate than bi-encoder cosine / BM25, at the cost of ~15x the
+    # latency of retrieval. Set False for the Phase 4 (RRF-only) behaviour.
+    RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "true").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
+    # Cross-encoder model name (sentence-transformers CrossEncoder). Loaded
+    # lazily on first query and cached for the process lifetime.
+    RERANKER_MODEL_NAME: str = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")
+
+    # How many fused RRF candidates are handed to the cross-encoder before
+    # slicing to `limit`. Larger = better recall of the true top-1 at the
+    # cost of more scoring work. 15 is a reasonable default for this corpus.
+    RERANKER_CANDIDATE_K: int = int(os.getenv("RERANKER_CANDIDATE_K", "15"))
+
     # API key for Google's Gemini API (google-genai SDK). Deliberately
     # defaults to an EMPTY string rather than None: rag_service.py treats
     # "empty" as "not configured" and refuses to call the model instead of

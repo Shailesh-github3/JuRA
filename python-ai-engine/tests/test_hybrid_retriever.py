@@ -75,6 +75,7 @@ def test_rrf_fuses_branches_and_ranks_bm25_winner_first(monkeypatch):
     monkeypatch.setattr("app.retrieval.bm25_index.search", lambda *a_, **kw: [b, c])
     monkeypatch.setattr(retriever, "embed_query", lambda q: [0.0])
     monkeypatch.setattr(_settings.settings, "HYBRID_SEARCH_ENABLED", True)
+    monkeypatch.setattr(_settings.settings, "RERANKER_ENABLED", False)
     monkeypatch.setattr(_settings.settings, "RRF_K", 60)
     monkeypatch.setattr(_settings.settings, "HYBRID_CANDIDATE_MULTIPLIER", 2)
 
@@ -93,6 +94,7 @@ def test_rrf_deduplicates_chunks_present_in_both_branches(monkeypatch):
     monkeypatch.setattr("app.retrieval.bm25_index.search", lambda *a_, **kw: [a, b])
     monkeypatch.setattr(retriever, "embed_query", lambda q: [0.0])
     monkeypatch.setattr(_settings.settings, "HYBRID_SEARCH_ENABLED", True)
+    monkeypatch.setattr(_settings.settings, "RERANKER_ENABLED", False)
     monkeypatch.setattr(_settings.settings, "RRF_K", 60)
     monkeypatch.setattr(_settings.settings, "HYBRID_CANDIDATE_MULTIPLIER", 2)
 
@@ -210,6 +212,7 @@ def hybrid_corpus(monkeypatch):
 
     from app.config import settings as _s
     monkeypatch.setattr(_s.settings, "HYBRID_SEARCH_ENABLED", True)
+    monkeypatch.setattr(_s.settings, "RERANKER_ENABLED", False)
     monkeypatch.setattr(_s.settings, "RRF_K", 60)
     monkeypatch.setattr(_s.settings, "HYBRID_CANDIDATE_MULTIPLIER", 4)
     return chunks
