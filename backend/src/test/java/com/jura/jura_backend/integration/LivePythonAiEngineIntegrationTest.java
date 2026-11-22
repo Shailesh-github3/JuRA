@@ -12,12 +12,14 @@ import com.jura.jura_backend.dto.chat.ChatSessionResponse;
 import com.jura.jura_backend.dto.chat.CreateSessionRequest;
 import com.jura.jura_backend.dto.chat.SendMessageRequest;
 import com.jura.jura_backend.dto.legalitem.PageResponse;
+import com.jura.jura_backend.dto.rag.CitationResponse;
 import com.jura.jura_backend.dto.user.UserResponse;
 import com.jura.jura_backend.entity.LegalItem;
 import com.jura.jura_backend.repository.LegalItemRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,6 +40,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+// Opt-in only: this test drives a REAL running python-ai-engine (and therefore a
+// real Qdrant + Gemini call). Without this guard, `mvn clean test` fails on any
+// machine that has not started the AI engine, which made the README's test
+// instructions misleading. Run it explicitly:
+//     $env:JURA_LIVE_AI="true"; mvn test -Dtest=LivePythonAiEngineIntegrationTest
+@EnabledIfEnvironmentVariable(named = "JURA_LIVE_AI", matches = "true")
 class LivePythonAiEngineIntegrationTest {
 
     @Autowired
@@ -149,13 +157,54 @@ class LivePythonAiEngineIntegrationTest {
 
         assertNotNull(chatResponse.getMessage());
         assertEquals("ASSISTANT", chatResponse.getMessage().getRole());
-        assertTrue(chatResponse.getMessage().getContent().contains("Section 103"));
-        assertNotNull(chatResponse.getCitations());
-        assertFalse(chatResponse.getCitations().isEmpty());
 
-        assertEquals("Bharatiya Nyaya Sanhita, 2023", chatResponse.getCitations().get(0).getDocumentTitle());
-        assertEquals("Section 103", chatResponse.getCitations().get(0).getArticleOrSection());
-        assertEquals("India Code", chatResponse.getCitations().get(0).getSource());
+        // ------------------------------------------------------------------
+        // Real RAG structure validation.
+        //
+        // These assertions deliberately do NOT pin specific section numbers.
+        // The old version asserted "Section 103" / "India Code" literals, which
+        // is exactly what the hardcoded stub in the Python service returned --
+        // so the test passed while proving nothing about retrieval or grounding.
+        // What actually matters now is that the answer came from the pipeline:
+        // non-blank generated text, citations built from chunk metadata, and
+        // every citation complete enough to display and verify.
+        // ------------------------------------------------------------------
+        String answer = chatResponse.getMessage().getContent();
+        assertNotNull(answer);
+        assertFalse(answer.isBlank(), "RAG answer must not be blank");
+
+        assertNotNull(chatResponse.getCitations());
+        assertFalse(
+                chatResponse.getCitations().isEmpty(),
+                "a grounded answer must carry at least one citation built from chunk metadata"
+        );
+
+        for (CitationResponse citation : chatResponse.getCitations()) {
+            assertNotNull(citation.getDocumentTitle(), "citation.documentTitle is required");
+            assertFalse(citation.getDocumentTitle().isBlank());
+
+            assertNotNull(citation.getArticleOrSection(), "citation.articleOrSection is required");
+            assertTrue(
+                    citation.getArticleOrSection().matches("^(Article|Section) \\S+.*"),
+                    "articleOrSection must be a provision label, got: "
+                            + citation.getArticleOrSection()
+            );
+
+            assertNotNull(citation.getPage(), "citation.page is required");
+            assertTrue(citation.getPage() > 0, "citation.page must be a real PDF page");
+
+            assertNotNull(citation.getSource(), "citation.source is required");
+            assertFalse(citation.getSource().isBlank());
+        }
+
+        // The deterministic verifier removes any marker that does not resolve to
+        // a supplied reference, so at least one verified [n] must survive in a
+        // cited answer. A leftover marker with no citation would mean the
+        // verifier let something ungrounded through.
+        assertTrue(
+                answer.matches("(?s).*\\[\\d+\\].*"),
+                "answer should retain at least one verified [n] citation marker"
+        );
 
         // 6. Verify message history retrieval for session
         MvcResult messagesListResult = mockMvc.perform(get("/api/chat/sessions/" + sessionId + "/messages")

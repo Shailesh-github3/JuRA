@@ -95,6 +95,22 @@ class Settings:
     # per Step 5 of the original plan).
     MAX_CHUNK_CHARS: int = int(os.getenv("MAX_CHUNK_CHARS", "1500"))
 
+    # -------------------------------------------------------------
+    # LLM (generation stage -- app/rag/rag_service.py)
+    # -------------------------------------------------------------
+
+    # API key for Google's Gemini API (google-genai SDK). Deliberately
+    # defaults to an EMPTY string rather than None: rag_service.py treats
+    # "empty" as "not configured" and refuses to call the model instead of
+    # letting the SDK raise an opaque auth error at request time. Keeping a
+    # real key out of this file is the point -- set it in .env (gitignored).
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+
+    # Which Gemini model generates the answer. Overridable per environment
+    # so a model can be swapped (e.g. to a cheaper/faster one) without a
+    # code change. Must be a model name the google-genai SDK recognises.
+    GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
 
 # We create ONE instance of Settings and import THIS everywhere, instead
 # of importing the class and instantiating it fresh in every file.
