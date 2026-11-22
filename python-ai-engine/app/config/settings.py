@@ -116,8 +116,26 @@ class Settings:
     MIN_SIMILARITY_SCORE: float = float(os.getenv("MIN_SIMILARITY_SCORE", "0.35"))
 
     # -------------------------------------------------------------
-    # LLM (generation stage -- app/rag/rag_service.py)
+    # HYBRID RETRIEVAL (BM25 + dense + RRF)
     # -------------------------------------------------------------
+
+    # When True, retrieve() fuses BM25 lexical search with dense Qdrant
+    # search using Reciprocal Rank Fusion. Dense embeddings match concepts
+    # well but lose exact numerals ("Article 14" retrieves Article 228), so
+    # the lexical branch is what fixes exact section-number lookups. Set to
+    # False to fall back to dense-only (useful for ablation / debugging).
+    HYBRID_SEARCH_ENABLED: bool = os.getenv("HYBRID_SEARCH_ENABLED", "true").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
+    # RRF constant (standard value 60). Larger k flattens rank differences
+    # and favours recall over precision; smaller k amplifies top ranks.
+    RRF_K: int = int(os.getenv("RRF_K", "60"))
+
+    # Both branches fetch limit * this many candidates before fusion, so a
+    # chunk ranked 5th in one list can still surface in the fused top-k.
+    HYBRID_CANDIDATE_MULTIPLIER: int = int(os.getenv("HYBRID_CANDIDATE_MULTIPLIER", "4"))
+
 
     # API key for Google's Gemini API (google-genai SDK). Deliberately
     # defaults to an EMPTY string rather than None: rag_service.py treats

@@ -137,6 +137,17 @@ def upsert_chunks(chunks: list[Chunk]) -> int:
     ]
 
     client.upsert(collection_name=settings.QDRANT_COLLECTION_NAME, points=points)
+
+    # The BM25 index (app/retrieval/bm25_index.py) caches a snapshot of this
+    # collection; any write makes it stale. Lazy import breaks the circular
+    # dependency (bm25_index imports qdrant_service at module load).
+    try:
+        from app.retrieval import bm25_index
+
+        bm25_index.invalidate_cache()
+    except Exception:  # pragma: no cover - defensive
+        pass
+
     return len(points)
 
 

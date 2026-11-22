@@ -24,6 +24,11 @@ pymupdf>=1.24
 # client.collection_exists(), both added in that series.
 qdrant-client>=1.10
 
+# --- Lexical retrieval (app/retrieval/bm25_index.py) ---
+# In-memory BM25Okapi over the Qdrant collection, used by the hybrid
+# retriever (BM25 + dense + RRF) to fix exact section-number lookups.
+rank-bm25>=0.2.2
+
 # --- Embeddings (app/embeddings/embedding_service.py) ---
 # Pulls in torch + transformers transitively.
 sentence-transformers>=3.0
