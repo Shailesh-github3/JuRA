@@ -7,6 +7,7 @@ import com.jura.jura_backend.dto.chat.ChatResponse;
 import com.jura.jura_backend.dto.chat.ChatSessionResponse;
 import com.jura.jura_backend.dto.chat.SendMessageRequest;
 import com.jura.jura_backend.dto.rag.RagCitationDto;
+import com.jura.jura_backend.dto.rag.RagQueryRequest;
 import com.jura.jura_backend.dto.rag.RagResponseDto;
 import com.jura.jura_backend.entity.ChatMessage;
 import com.jura.jura_backend.entity.ChatSession;
@@ -18,6 +19,7 @@ import com.jura.jura_backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -129,6 +131,7 @@ class ChatServiceTest {
                 .build();
 
         when(chatSessionRepository.findById(sessionId)).thenReturn(Optional.of(sampleSession));
+        when(chatMessageRepository.findAllByChatSessionIdOrderByCreatedAtAsc(sessionId)).thenReturn(List.of());
         when(pythonRagClient.query(any())).thenReturn(ragResponse);
         when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(assistantMsg);
 
@@ -141,6 +144,99 @@ class ChatServiceTest {
         assertEquals("Section 103", response.getCitations().get(0).getArticleOrSection());
 
         // Verify two messages were persisted (1 user message, 1 assistant message)
+        verify(chatMessageRepository, times(2)).save(any(ChatMessage.class));
+    }
+
+    @Test
+    void shouldForwardPriorSessionHistoryToPythonRagClient() {
+        ChatMessage priorUser = ChatMessage.builder()
+                .id(UUID.randomUUID())
+                .chatSession(sampleSession)
+                .role("USER")
+                .content("Police detained my friend")
+                .createdAt(Instant.now().minusSeconds(10))
+                .build();
+        ChatMessage priorAssistant = ChatMessage.builder()
+                .id(UUID.randomUUID())
+                .chatSession(sampleSession)
+                .role("ASSISTANT")
+                .content("How long was he held, and was a warrant shown?")
+                .createdAt(Instant.now().minusSeconds(5))
+                .build();
+
+        SendMessageRequest request = SendMessageRequest.builder()
+                .content("About 3 hours, no warrant shown.")
+                .limit(5)
+                .build();
+
+        RagResponseDto ragResponse = RagResponseDto.builder()
+                .query(request.getContent())
+                .answer("Under Section 35 of BNSS ... [1].")
+                .citations(List.of())
+                .needsClarification(false)
+                .build();
+
+        ChatMessage assistantMsg = ChatMessage.builder()
+                .id(UUID.randomUUID())
+                .chatSession(sampleSession)
+                .role("ASSISTANT")
+                .content(ragResponse.getAnswer())
+                .createdAt(Instant.now())
+                .build();
+
+        when(chatSessionRepository.findById(sessionId)).thenReturn(Optional.of(sampleSession));
+        when(chatMessageRepository.findAllByChatSessionIdOrderByCreatedAtAsc(sessionId))
+                .thenReturn(List.of(priorUser, priorAssistant));
+        when(pythonRagClient.query(any())).thenReturn(ragResponse);
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(assistantMsg);
+
+        ChatResponse response = chatService.sendMessage("advocate@jura.law", sessionId, request);
+
+        assertNotNull(response);
+
+        ArgumentCaptor<RagQueryRequest> captor = ArgumentCaptor.forClass(RagQueryRequest.class);
+        verify(pythonRagClient).query(captor.capture());
+        RagQueryRequest captured = captor.getValue();
+
+        assertEquals(2, captured.getHistory().size());
+        assertEquals("user", captured.getHistory().get(0).getRole());
+        assertEquals("Police detained my friend", captured.getHistory().get(0).getContent());
+        assertEquals("assistant", captured.getHistory().get(1).getRole());
+        assertEquals("How long was he held, and was a warrant shown?", captured.getHistory().get(1).getContent());
+    }
+
+    @Test
+    void shouldHandleClarificationTurnWithEmptyCitations() {
+        SendMessageRequest request = SendMessageRequest.builder()
+                .content("Police detained my friend")
+                .limit(5)
+                .build();
+
+        RagResponseDto ragResponse = RagResponseDto.builder()
+                .query(request.getContent())
+                .answer("How long was he held, and was a warrant shown?")
+                .citations(List.of())
+                .needsClarification(true)
+                .build();
+
+        ChatMessage assistantMsg = ChatMessage.builder()
+                .id(UUID.randomUUID())
+                .chatSession(sampleSession)
+                .role("ASSISTANT")
+                .content(ragResponse.getAnswer())
+                .createdAt(Instant.now())
+                .build();
+
+        when(chatSessionRepository.findById(sessionId)).thenReturn(Optional.of(sampleSession));
+        when(chatMessageRepository.findAllByChatSessionIdOrderByCreatedAtAsc(sessionId)).thenReturn(List.of());
+        when(pythonRagClient.query(any())).thenReturn(ragResponse);
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenReturn(assistantMsg);
+
+        ChatResponse response = chatService.sendMessage("advocate@jura.law", sessionId, request);
+
+        assertNotNull(response);
+        assertEquals("ASSISTANT", response.getMessage().getRole());
+        assertEquals(0, response.getCitations().size());
         verify(chatMessageRepository, times(2)).save(any(ChatMessage.class));
     }
 }

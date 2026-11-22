@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.models.rag_response import RagResponse
+from app.models.rag_response import ChatTurn, RagResponse
 from app.rag.rag_service import RagServiceError, answer_query
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ class QueryRequest(BaseModel):
     limit: Optional[int] = Field(default=5, ge=1, le=20, description="Max number of chunks/citations")
     document_type: Optional[str] = Field(default=None, description="CONSTITUTION, ACT, CODE")
     legal_status: Optional[str] = Field(default=None, description="CURRENT, SUPERSEDED, REPEALED")
+    history: list[ChatTurn] = Field(default_factory=list, description="Prior conversation turns for multi-turn context")
 
 
 @app.get("/health")
@@ -62,6 +63,7 @@ def query_rag(request: QueryRequest):
             limit=request.limit or 5,
             document_type=request.document_type,
             legal_status=request.legal_status,
+            history=request.history,
         )
     except ValueError as exc:
         # Invalid filter values are a client error, not an engine failure.

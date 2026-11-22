@@ -26,4 +26,10 @@ public class RagResponseDto {
     @JsonProperty("citations")
     @Builder.Default
     private List<RagCitationDto> citations = new ArrayList<>();
+
+    @JsonProperty("needs_clarification")
+    private Boolean needsClarification;
+
+    @JsonProperty("extracted_facts")
+    private ExtractedFactsDto extractedFacts;
 }

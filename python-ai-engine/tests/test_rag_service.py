@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 
 from app.models.chunk import Chunk, ChunkMetadata, DocumentType, LegalStatus
-from app.models.rag_response import RagResponse
+from app.models.rag_response import ExtractedFacts, RagResponse
 from app.rag import rag_service
 from app.rag.prompt_builder import SYSTEM_PROMPT
 
@@ -235,6 +235,9 @@ def test_prompt_contains_numbered_references_and_system_prompt(
 ):
     """The model must actually receive the references, in retrieval order,
     and the citation-enforcing system prompt."""
+    from app.models.rag_response import ExtractedFacts
+
+    monkeypatch.setattr(rag_service, "analyze_query", lambda *a, **kw: ExtractedFacts(needs_clarification=False))
     monkeypatch.setattr(rag_service, "retrieve", lambda **kwargs: bns_chunks)
     client = fake_gemini("Answer [1].")
 
@@ -393,12 +396,15 @@ def test_query_endpoint_delegates_to_rag_service(monkeypatch):
         "answer": "ok",
         "citations": [],
         "retrieved_chunks": [],
+        "needs_clarification": False,
+        "extracted_facts": None,
     }
     assert captured == {
         "query": "punishment for murder",
         "limit": 3,
         "document_type": "ACT",
         "legal_status": "CURRENT",
+        "history": [],
     }
 
 

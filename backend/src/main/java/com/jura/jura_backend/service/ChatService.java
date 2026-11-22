@@ -7,6 +7,7 @@ import com.jura.jura_backend.dto.chat.ChatMessageResponse;
 import com.jura.jura_backend.dto.chat.ChatResponse;
 import com.jura.jura_backend.dto.chat.ChatSessionResponse;
 import com.jura.jura_backend.dto.chat.SendMessageRequest;
+import com.jura.jura_backend.dto.rag.ChatTurnDto;
 import com.jura.jura_backend.dto.rag.CitationResponse;
 import com.jura.jura_backend.dto.rag.RagQueryRequest;
 import com.jura.jura_backend.dto.rag.RagResponseDto;
@@ -116,12 +117,31 @@ public class ChatService {
             chatSessionRepository.save(session);
         }
 
-        // 3. Build Python RAG request
+        // 3. Build Python RAG request, forwarding recent session history so the
+        //    Python clarification loop (Feature 4) can see prior turns.
+        List<ChatMessage> priorMessages = chatMessageRepository
+                .findAllByChatSessionIdOrderByCreatedAtAsc(sessionId)
+                .stream()
+                .filter(m -> !m.getId().equals(userMessage.getId()))
+                .collect(Collectors.toList());
+
+        // Cap to the last 6 prior turns (chronological order preserved).
+        int historyStart = Math.max(0, priorMessages.size() - 6);
+        List<ChatTurnDto> history = new ArrayList<>();
+        for (ChatMessage m : priorMessages.subList(historyStart, priorMessages.size())) {
+            String role = "ASSISTANT".equalsIgnoreCase(m.getRole()) ? "assistant" : "user";
+            history.add(ChatTurnDto.builder()
+                    .role(role)
+                    .content(m.getContent())
+                    .build());
+        }
+
         RagQueryRequest ragRequest = RagQueryRequest.builder()
                 .query(request.getContent().trim())
                 .limit(request.getLimit() != null ? request.getLimit() : 5)
                 .documentType(request.getDocumentType())
                 .legalStatus(request.getLegalStatus())
+                .history(history)
                 .build();
 
         // 4. Query Python AI engine

@@ -17,9 +17,36 @@ This is also the exact shape that main.py (the future FastAPI endpoint)
 will send back to Spring Boot as JSON.
 """
 
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
 from app.models.chunk import Chunk
+
+
+class ChatTurn(BaseModel):
+    """One turn of a multi-turn conversation, as sent by the backend
+    (Java ChatService) in RagQueryRequest.history. Mirrors the backend's
+    ChatTurnDto so the two sides stay in sync without a code generator."""
+
+    role: Literal["user", "assistant"] = Field(..., description="'user' or 'assistant'")
+    content: str = Field(..., min_length=1, description="The turn's text")
+
+
+class ExtractedFacts(BaseModel):
+    """Result of the fact-extraction / clarification analyzer.
+
+    The analyzer's job is NOT to answer the question -- it decides whether
+    the user's situation is too underspecified to retrieve on, and if so,
+    which 1-2 facts would unblock a real answer. When needs_clarification
+    is False the rest of the pipeline runs normally.
+    """
+
+    legal_domain: str = Field(default="", description="e.g. 'criminal', 'constitutional', 'contract'")
+    extracted_facts: list[str] = Field(default_factory=list, description="Facts already stated by the user")
+    missing_facts: list[str] = Field(default_factory=list, description="Critical facts still needed")
+    needs_clarification: bool = Field(default=False)
+    clarification_question: Optional[str] = Field(default=None, description="Polite question asking for the missing facts")
 
 
 class Citation(BaseModel):
@@ -48,14 +75,15 @@ class RagResponse(BaseModel):
     query: str = Field(..., description="The original question the user asked.")
 
     answer: str = Field(
-        ..., description="The LLM-generated answer, built ONLY from retrieved chunks."
+        ..., description="The LLM-generated answer, built ONLY from retrieved chunks, or a clarification question."
     )
 
     citations: list[Citation] = Field(
         ...,
         description=(
             "Real sources the answer was built from. Built directly from "
-            "the Chunk objects retrieval returned -- never invented by the LLM."
+            "the Chunk objects retrieval returned -- never invented by the LLM. "
+            "Empty during a clarification turn."
         ),
     )
 
@@ -65,4 +93,17 @@ class RagResponse(BaseModel):
     retrieved_chunks: list[Chunk] = Field(
         default_factory=list,
         description="The full Chunk objects used as context, kept for debugging/inspection.",
+    )
+
+    # --- clarification loop (Feature 4) ---
+    needs_clarification: bool = Field(
+        default=False,
+        description="True when the analyzer decided the query is too underspecified "
+        "to retrieve on and `answer` is a clarification question instead of a "
+        "grounded answer.",
+    )
+    extracted_facts: Optional[ExtractedFacts] = Field(
+        default=None,
+        description="Facts extracted from the user's situation and the missing "
+        "facts that triggered clarification, when available.",
     )

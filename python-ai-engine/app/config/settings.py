@@ -159,6 +159,22 @@ class Settings:
     # cost of more scoring work. 15 is a reasonable default for this corpus.
     RERANKER_CANDIDATE_K: int = int(os.getenv("RERANKER_CANDIDATE_K", "15"))
 
+    # -------------------------------------------------------------
+    # FACT EXTRACTION & CLARIFICATION LOOP (Feature 4)
+    # -------------------------------------------------------------
+
+    # When True, analyze_query() runs before retrieval and may return a
+    # clarification question instead of an answer. Set False to always
+    # retrieve immediately (useful for ablation / direct API callers).
+    CLARIFICATION_ENABLED: bool = os.getenv("CLARIFICATION_ENABLED", "true").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
+    # Maximum number of assistant clarification turns allowed per session.
+    # Once reached, the next user turn always proceeds to retrieval, so the
+    # loop can never spin forever.
+    MAX_CLARIFICATION_TURNS: int = int(os.getenv("MAX_CLARIFICATION_TURNS", "1"))
+
     # API key for Google's Gemini API (google-genai SDK). Deliberately
     # defaults to an EMPTY string rather than None: rag_service.py treats
     # "empty" as "not configured" and refuses to call the model instead of

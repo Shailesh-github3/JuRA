@@ -37,7 +37,8 @@ from google.genai import types
 
 from app.config.settings import settings
 from app.models.chunk import Chunk, DocumentType, LegalStatus
-from app.models.rag_response import Citation, RagResponse
+from app.models.rag_response import ChatTurn, Citation, ExtractedFacts, RagResponse
+from app.rag.fact_extractor import analyze_query
 from app.rag.prompt_builder import SYSTEM_PROMPT, build_prompt
 from app.retrieval.retriever import retrieve
 
@@ -257,39 +258,71 @@ def answer_query(
     limit: int = 5,
     document_type: str | DocumentType | None = None,
     legal_status: str | LegalStatus | None = None,
+    history: list[ChatTurn] | None = None,
 ) -> RagResponse:
     """Answer `query` from the indexed legal corpus.
 
-    Retrieval -> (guard) -> prompt -> Gemini -> citation verification.
+    Optional multi-turn `history` (prior user/assistant turns) is used for
+    fact extraction / clarification (Feature 4) and to enrich the retrieval
+    query on a follow-up turn.
 
-    Returns a RagResponse whose citations were built ONLY from the metadata
-    of chunks that were actually retrieved and actually cited.
+    Outcomes:
+      1. Clarification needed  -> clarification question, no retrieval, no LLM.
+      2. Nothing retrieved      -> refusal, no LLM.
+      3. Chunks retrieved       -> prompt -> Gemini -> verified citations.
     """
+    history = history or []
+
+    # Step 1: fact extraction / clarification analysis.
+    if settings.CLARIFICATION_ENABLED:
+        facts = analyze_query(query, history)
+    else:
+        facts = ExtractedFacts(needs_clarification=False)
+
+    if facts.needs_clarification and facts.clarification_question:
+        logger.info("Query %r needs clarification; skipping retrieval.", query)
+        return RagResponse(
+            query=query,
+            answer=facts.clarification_question,
+            citations=[],
+            retrieved_chunks=[],
+            needs_clarification=True,
+            extracted_facts=facts,
+        )
+
+    # Step 2: build an enriched search query on follow-up turns so the
+    # retrieval sees the original situation plus the user's clarification.
+    if history:
+        prior_user = [t.content for t in history if t.role == "user"]
+        search_query = " ".join(prior_user + [query]).strip()
+    else:
+        search_query = query
+    if not search_query:
+        search_query = query
+
     chunks = retrieve(
-        query=query,
+        query=search_query,
         limit=limit,
         document_type=_coerce_document_type(document_type),
         legal_status=_coerce_legal_status(legal_status),
     )
 
     if not chunks:
-        # Case 1: nothing retrieved. No LLM call, no citations. Returning a
-        # clear refusal is the honest answer here -- asking the model to
-        # answer anyway is exactly how training-data hallucination gets in.
-        logger.info("No chunks retrieved for query %r; returning refusal.", query)
+        # Case 1: nothing retrieved. No LLM call, no citations.
+        logger.info("No chunks retrieved for query %r; returning refusal.", search_query)
         return RagResponse(
             query=query,
             answer=NO_RESULTS_ANSWER,
             citations=[],
             retrieved_chunks=[],
+            needs_clarification=False,
+            extracted_facts=facts,
         )
 
-    logger.info("Retrieved %d chunk(s) for query %r; generating answer.", len(chunks), query)
+    logger.info("Retrieved %d chunk(s) for query %r; generating answer.", len(chunks), search_query)
 
-    # build_prompt raises on an empty list, which cannot happen here -- the
-    # guard above already returned. Keeping the guard in both places means
-    # neither file can silently regress into "answer with no references".
-    prompt = build_prompt(query, chunks)
+    # build_prompt raises on an empty list, which cannot happen here.
+    prompt = build_prompt(search_query, chunks)
     raw_answer = _generate_answer(prompt)
 
     answer, citations = verify_citations(raw_answer, chunks)
@@ -299,4 +332,6 @@ def answer_query(
         answer=answer,
         citations=citations,
         retrieved_chunks=chunks,
+        needs_clarification=False,
+        extracted_facts=facts,
     )
