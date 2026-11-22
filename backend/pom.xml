@@ -129,6 +129,22 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <!--
+                        Pin the JVM timezone to UTC.
+
+                        Why: the PostgreSQL JDBC driver sends the JVM's default
+                        timezone to the server as the `TimeZone` startup parameter.
+                        On Windows the JVM reports the legacy alias "Asia/Calcutta",
+                        which the postgres:16 container's tzdata does not define
+                        (it only ships "Asia/Kolkata"), so every connection dies with
+                        "FATAL: invalid value for parameter TimeZone: Asia/Calcutta"
+                        before Flyway can run.
+
+                        Using UTC here is also the right default for a service that
+                        stores timestamps as `Instant`. For a packaged jar, pass the
+                        same flag explicitly: java -Duser.timezone=UTC -jar ...
+                    -->
+                    <jvmArguments>-Duser.timezone=UTC</jvmArguments>
                 </configuration>
             </plugin>
         </plugins>

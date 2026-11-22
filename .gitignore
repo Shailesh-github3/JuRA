@@ -37,3 +37,16 @@ venv.bak/
 
 # Logs
 *.log
+
+# Generated ingestion / scratch artifacts (regenerable, never commit)
+# - test_output.txt          : raw+cleaned page dump from test_pipeline.py
+# - stored_chunks*.txt       : chunk dumps from run_chunker_test.py
+# - embedded_chunk*.jsonl    : vector dumps from test_embedding.py
+# - *_raw.txt                : PDF text dumps from scripts/extract_pdf.py
+python-ai-engine/test_output.txt
+python-ai-engine/stored_chunks*.txt
+python-ai-engine/embedded_chunk*.jsonl
+python-ai-engine/*_raw.txt
+
+# Python virtualenv (belt-and-braces; also covered above)
+python-ai-engine/.venv/

@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -65,6 +66,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
         log.warn("Bad request on {}: {}", request.getRequestURI(), ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+        // e.g. a client POSTing with Content-Type: application/x-www-form-urlencoded
+        // to an endpoint that only accepts JSON. This is a client mistake (4xx), not
+        // a server fault, so it must never fall through to the generic 500 handler.
+        log.warn("Unsupported media type on {}: {}", request.getRequestURI(), ex.getMessage());
+        return buildResponse(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                ex.getMessage(),
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler({
