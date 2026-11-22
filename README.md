@@ -11,8 +11,8 @@ JuRA is a production-grade legal research and chat platform tailored to Indian L
 ```text
 ┌──────────────┐          HTTP / JWT          ┌───────────────────────┐
 │              │ ───────────────────────────> │                       │
-│    React     │                              │  Spring Boot Backend  │
-│   Frontend   │ <─────────────────────────── │      (Port 8080)      │
+│  HTTP Client │                              │  Spring Boot Backend  │
+│ (Swagger UI) │ <─────────────────────────── │      (Port 8080)      │
 │              │        Clean JSON DTOs       └───────────┬───────────┘
 └──────────────┘                                          │
                                                           │ 1. Saves User Msg
@@ -32,14 +32,22 @@ JuRA is a production-grade legal research and chat platform tailored to Indian L
                                               ┌───────────────────────┐
                                               │ Python FastAPI Engine │
                                               │      (Port 8000)      │
-                                              │  (Qdrant Vector DB +  │
-                                              │   Embeddings + LLM)   │
+                                              │  Retrieval + Gemini   │
+                                              │  + Citation Verifier  │
+                                              └───────────┬───────────┘
+                                                          │
+                                                          ▼
+                                              ┌───────────────────────┐
+                                              │   Qdrant (6333)       │
+                                              │  384-dim MiniLM-L6-v2 │
+                                              │  4,704 legal chunks   │
                                               └───────────────────────┘
 ```
 
 - **Spring Boot Backend**: Exposes all client-facing REST APIs, handles stateless JWT authentication/authorization, enforces strict resource ownership, manages PostgreSQL persistence, and translates responses into camelCase client DTOs.
-- **Python FastAPI AI Engine**: Internal-only service running RAG pipeline over Indian legal statutes. It is never exposed directly to frontend clients.
+- **Python FastAPI AI Engine**: Internal-only service running the RAG pipeline (dense retrieval over Qdrant + Gemini generation + deterministic citation verification). Never exposed directly to frontend clients.
 - **PostgreSQL Database**: Relational database with Flyway schema migrations, storing users, chat sessions, chat messages with JSONB citation metadata, legal items, and bookmarks.
+- **Qdrant Vector Store**: 384-dim cosine collection (`jura_legal_chunks`) of ~4,700 chunks from the Constitution, BNS, BNSS, BSA, CrPC and IPC.
 
 ---
 
@@ -75,26 +83,100 @@ users (email PK, name, password_hash, role, created_at, ph_no UNIQUE)
 
 ## 🚀 Getting Started
 
+## 🚀 Getting Started
+
 ### 1. Prerequisites
 
-- **Java 21 JDK** installed (`java -version`)
-- **Maven 3.9+** installed (`mvn -version`)
-- **PostgreSQL 14+** running locally or in cloud
-- **Python 3.10+** (for running the Python AI engine)
+- **Docker Desktop** (for Qdrant and PostgreSQL) — `docker --version`
+- **Java 21 JDK** installed — `java -version`
+- **Maven 3.9+** installed — `mvn -version`
+- **Python 3.10+** — `python --version` (3.11+ recommended; the project is verified on 3.14)
 
-### 2. Database Setup
+### 2. Start the infrastructure
 
-Create the PostgreSQL database before starting the application:
+Everything the stack needs (Qdrant on `:6333`/`:6334`, PostgreSQL `jura_db` on `:5432`) is defined in `docker-compose.yml`:
 
-```sql
-CREATE DATABASE jura_db;
+```bash
+docker compose up -d
+docker compose ps   # both services should report (healthy)
 ```
 
-Flyway automatically creates all tables and seeds Indian legal reference data on the first application launch.
+PostgreSQL is seeded automatically by Flyway on the first Spring Boot launch; no manual `CREATE DATABASE` is required. To wipe all data: `docker compose down -v`.
 
-### 3. Environment Variables & Configuration
+### 3. Configure the Python AI engine
 
-Configure via environment variables or edit `src/main/resources/application.yml`:
+```bash
+cd python-ai-engine
+
+# Create and activate a virtual environment
+python -m venv .venv
+# Windows:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+source .venv/bin/activate
+
+# Install the REAL runtime dependencies (not the stale pip-freeze manifest)
+pip install -r requirements.txt
+
+# Configure secrets
+cp .env.example .env
+# Edit .env and set GOOGLE_API_KEY (from Google AI Studio) -- required for
+# /query to answer. Without it the endpoint returns 503 instead of calling
+# the model. Qdrant/embedding settings have working defaults.
+```
+
+### 4. Ingest the legal corpus into Qdrant (one-time)
+
+```bash
+python scripts/ingest_documents.py --list   # 6 registered PDFs
+python scripts/ingest_documents.py          # ~4,700 chunks across 6 documents
+python scripts/search_documents.py "punishment for murder" --status current
+```
+
+### 5. Run the Python AI engine
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Health: http://localhost:8000/health
+```
+
+### 6. Run the Spring Boot backend
+
+In a separate terminal, from the repo root:
+
+```bash
+cd backend
+
+# Offline unit tests (no running services required):
+mvn clean test
+
+# Run the application (Flyway creates the schema and seeds legal items):
+mvn spring-boot:run
+# Server: http://localhost:8080
+# Swagger UI: http://localhost:8080/swagger-ui.html
+```
+
+`mvn clean test` runs the offline suite (17 tests, 1 skipped). The live end-to-end test
+(`LivePythonAiEngineIntegrationTest`) is gated behind an environment variable so it
+does not fail on machines without the AI engine:
+
+```bash
+# Requires: running backend + Python engine + Qdrant + a real GOOGLE_API_KEY
+$env:JURA_LIVE_AI = "true"   # PowerShell
+mvn test -Dtest=LivePythonAiEngineIntegrationTest
+```
+
+### 7. Evaluate retrieval quality (optional)
+
+```bash
+cd python-ai-engine
+python scripts/evaluate_retrieval.py          # Recall@1/3/5 and MRR, two categories
+python scripts/evaluate_retrieval.py --json   # machine-readable output
+```
+
+### Backend environment variables
+
+Configure via environment variables or edit `backend/src/main/resources/application.yml`:
 
 | Variable | Description | Default (Local Dev) |
 |---|---|---|
@@ -103,31 +185,22 @@ Configure via environment variables or edit `src/main/resources/application.yml`
 | `DATABASE_PASSWORD` | PostgreSQL Password | `postgres` |
 | `JWT_SECRET` | Base64-encoded 256-bit Secret Key | `404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970` |
 | `JWT_EXPIRATION` | JWT Token Validity (ms) | `86400000` (24 Hours) |
-| `PYTHON_AI_BASE_URL`| Base URL for Python AI Engine | `http://localhost:8000` |
+| `PYTHON_AI_BASE_URL` | Base URL for Python AI Engine | `http://localhost:8000` |
 
-### 4. Running the Spring Boot Backend
+### Python AI engine environment variables
 
-Using Maven:
+Configure in `python-ai-engine/.env` (see `.env.example`):
 
-```bash
-# Clean and run unit tests
-mvn clean test
-
-# Run application
-mvn spring-boot:run
-```
-
-The server will start on `http://localhost:8080`.
-
-### 5. Running the Python AI Engine
-
-In a separate terminal:
-
-```bash
-cd python-ai-engine
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+| Variable | Description | Default |
+|---|---|---|
+| `QDRANT_HOST` / `QDRANT_PORT` | Qdrant connection | `localhost` / `6333` |
+| `QDRANT_COLLECTION_NAME` | Collection name | `jura_legal_chunks` |
+| `EMBEDDING_MODEL_NAME` | Must match the model used for ingestion | `sentence-transformers/all-MiniLM-L6-v2` |
+| `EMBEDDING_DIMENSION` | Vector dimension (384 for MiniLM) | `384` |
+| `MAX_CHUNK_CHARS` | Fallback max chars per chunk | `1500` |
+| `MIN_SIMILARITY_SCORE` | Cosine floor below which a chunk is dropped | `0.35` |
+| `GOOGLE_API_KEY` | Google AI Studio key (required for `/query`) | *(empty)* |
+| `GEMINI_MODEL_NAME` | Generation model | `gemini-2.5-flash` |
 
 ---
 
@@ -181,7 +254,7 @@ To test secured endpoints in Swagger UI:
       {
         "document_title": "Bharatiya Nyaya Sanhita, 2023",
         "article_or_section": "Section 103",
-        "page": 42,
+        "page": 47,
         "source": "India Code",
         "source_url": "https://www.indiacode.nic.in/"
       }
@@ -192,7 +265,7 @@ To test secured endpoints in Swagger UI:
     {
       "documentTitle": "Bharatiya Nyaya Sanhita, 2023",
       "articleOrSection": "Section 103",
-      "page": 42,
+      "page": 47,
       "source": "India Code",
       "sourceUrl": "https://www.indiacode.nic.in/"
     }

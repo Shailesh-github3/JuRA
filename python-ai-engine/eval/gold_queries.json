@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "k": 5,
+  "description": "Gold retrieval set for JuRA dense retrieval. 30 queries over the six indexed legal documents. Used by scripts/evaluate_retrieval.py to measure Recall@k and MRR before adding BM25/RRF or reranking. A query is a HIT only when the expected document_id AND the expected article/section appear in the top-k retrieved chunks.",
+  "queries": [
+    {
+      "id": "const-14-equality",
+      "category": "semantic",
+      "query": "equality before the law and equal protection of the laws",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "14"
+      }
+    },
+    {
+      "id": "const-19-speech",
+      "category": "semantic",
+      "query": "freedom of speech and expression",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "19"
+      }
+    },
+    {
+      "id": "const-21-life",
+      "category": "semantic",
+      "query": "protection of life and personal liberty",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "21"
+      }
+    },
+    {
+      "id": "const-22-arrest",
+      "category": "semantic",
+      "query": "protection against arrest and detention in certain cases",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "22"
+      }
+    },
+    {
+      "id": "const-32-remedies",
+      "category": "semantic",
+      "query": "remedies for enforcement of fundamental rights writs",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "32"
+      }
+    },
+    {
+      "id": "const-51a-duties",
+      "category": "semantic",
+      "query": "fundamental duties of every citizen of India",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "51A"
+      }
+    },
+    {
+      "id": "const-17-untouchability",
+      "category": "semantic",
+      "query": "abolition of untouchability",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "17"
+      }
+    },
+    {
+      "id": "exact-const-14",
+      "category": "exact",
+      "query": "Article 14",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "14"
+      }
+    },
+    {
+      "id": "exact-const-21",
+      "category": "exact",
+      "query": "Article 21",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "21"
+      }
+    },
+    {
+      "id": "exact-const-32",
+      "category": "exact",
+      "query": "Article 32",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "32"
+      }
+    },
+    {
+      "id": "exact-const-51a",
+      "category": "exact",
+      "query": "Article 51A",
+      "document_type": "CONSTITUTION",
+      "legal_status": null,
+      "expected": {
+        "document_id": "constitution_2026",
+        "article": "51A"
+      }
+    },
+    {
+      "id": "bns-murder",
+      "category": "semantic",
+      "query": "punishment for murder",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "103"
+      }
+    },
+    {
+      "id": "bns-theft",
+      "category": "semantic",
+      "query": "theft",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "303"
+      }
+    },
+    {
+      "id": "bns-cheating",
+      "category": "semantic",
+      "query": "cheating",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "318"
+      }
+    },
+    {
+      "id": "bns-cbt",
+      "category": "semantic",
+      "query": "criminal breach of trust",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "316"
+      }
+    },
+    {
+      "id": "bns-defamation",
+      "category": "semantic",
+      "query": "defamation",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "356"
+      }
+    },
+    {
+      "id": "exact-bns-103",
+      "category": "exact",
+      "query": "Section 103 BNS",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "103"
+      }
+    },
+    {
+      "id": "exact-bns-303",
+      "category": "exact",
+      "query": "Section 303 BNS",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bns_2023",
+        "section": "303"
+      }
+    },
+    {
+      "id": "bnss-arrest-warrant",
+      "category": "semantic",
+      "query": "police officer may arrest a person without a warrant",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bnss_2023",
+        "section": "35"
+      }
+    },
+    {
+      "id": "exact-bnss-35",
+      "category": "exact",
+      "query": "Section 35 BNSS",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bnss_2023",
+        "section": "35"
+      }
+    },
+    {
+      "id": "exact-bnss-187",
+      "category": "exact",
+      "query": "Section 187 BNSS",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bnss_2023",
+        "section": "187"
+      }
+    },
+    {
+      "id": "bsa-electronic",
+      "category": "semantic",
+      "query": "admissibility of electronic records and digital evidence",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bsa_2023",
+        "section": "63"
+      }
+    },
+    {
+      "id": "bsa-dying",
+      "category": "semantic",
+      "query": "dying declaration",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bsa_2023",
+        "section": "26"
+      }
+    },
+    {
+      "id": "exact-bsa-63",
+      "category": "exact",
+      "query": "Section 63 BSA",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bsa_2023",
+        "section": "63"
+      }
+    },
+    {
+      "id": "exact-bsa-26",
+      "category": "exact",
+      "query": "Section 26 BSA",
+      "document_type": "ACT",
+      "legal_status": "CURRENT",
+      "expected": {
+        "document_id": "bsa_2023",
+        "section": "26"
+      }
+    },
+    {
+      "id": "ipc-murder",
+      "category": "semantic",
+      "query": "punishment for murder under the Indian Penal Code",
+      "document_type": "CODE",
+      "legal_status": "REPEALED",
+      "expected": {
+        "document_id": "ipc_1860",
+        "section": "302"
+      }
+    },
+    {
+      "id": "ipc-theft",
+      "category": "semantic",
+      "query": "theft under the Indian Penal Code",
+      "document_type": "CODE",
+      "legal_status": "REPEALED",
+      "expected": {
+        "document_id": "ipc_1860",
+        "section": "378"
+      }
+    },
+    {
+      "id": "exact-ipc-302",
+      "category": "exact",
+      "query": "Section 302 IPC",
+      "document_type": "CODE",
+      "legal_status": "REPEALED",
+      "expected": {
+        "document_id": "ipc_1860",
+        "section": "302"
+      }
+    },
+    {
+      "id": "crpc-arrest",
+      "category": "semantic",
+      "query": "arrest without warrant under the Code of Criminal Procedure",
+      "document_type": "CODE",
+      "legal_status": "SUPERSEDED",
+      "expected": {
+        "document_id": "crpc_1973",
+        "section": "41"
+      }
+    },
+    {
+      "id": "exact-crpc-41",
+      "category": "exact",
+      "query": "Section 41 CrPC",
+      "document_type": "CODE",
+      "legal_status": "SUPERSEDED",
+      "expected": {
+        "document_id": "crpc_1973",
+        "section": "41"
+      }
+    }
+  ]
+}

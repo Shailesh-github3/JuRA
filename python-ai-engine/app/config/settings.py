@@ -96,6 +96,26 @@ class Settings:
     MAX_CHUNK_CHARS: int = int(os.getenv("MAX_CHUNK_CHARS", "1500"))
 
     # -------------------------------------------------------------
+    # RETRIEVAL
+    # -------------------------------------------------------------
+
+    # Minimum cosine similarity a chunk must reach to be considered relevant.
+    #
+    # WHY THIS EXISTS: dense search always returns the k nearest vectors, even
+    # when the question is unrelated to the corpus ("quantum chromodynamics"
+    # still retrieves the nearest IPC section). Without a floor, rag_service's
+    # empty-retrieval guard could never fire for a real question, and the LLM
+    # would be asked to answer from irrelevant law. Anything below this score
+    # is discarded by qdrant_service.search(), so retrieval returns [] and the
+    # refusal path runs instead of a wasted (and misleading) generation call.
+    #
+    # 0.35 is a deliberate starting point for all-MiniLM-L6-v2 on this corpus,
+    # not a law of nature: it is the number the evaluation harness in
+    # scripts/evaluate_retrieval.py should be used to tune. Raising it makes
+    # the system refuse more often; lowering it lets weaker matches through.
+    MIN_SIMILARITY_SCORE: float = float(os.getenv("MIN_SIMILARITY_SCORE", "0.35"))
+
+    # -------------------------------------------------------------
     # LLM (generation stage -- app/rag/rag_service.py)
     # -------------------------------------------------------------
 

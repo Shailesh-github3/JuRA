@@ -157,6 +157,7 @@ def search(
     limit: int = 5,
     document_type: DocumentType | None = None,
     legal_status: LegalStatus | None = None,
+    score_threshold: float | None = None,
 ) -> list[Chunk]:
     """Search for the `limit` chunks most similar to query_vector.
 
@@ -165,11 +166,23 @@ def search(
     an answer about current law, without the caller needing to fetch
     extra results and filter them out in Python afterward.
 
+    score_threshold is the minimum cosine similarity a point must reach to
+    be returned. It defaults to settings.MIN_SIMILARITY_SCORE (not None) on
+    purpose: dense search ALWAYS has a nearest neighbour, so without a floor
+    an unrelated question ("quantum chromodynamics") still returns five
+    confident-looking IPC sections. Returning [] for those is what lets
+    rag_service.py refuse instead of asking the LLM to reason about
+    irrelevant law. Pass an explicit value to override, or a very low value
+    (e.g. -1.0) to disable filtering for diagnostics.
+
     Returns real Chunk objects (see _payload_to_chunk), not raw Qdrant
     search results -- so retriever.py and rag_service.py never need to
     know Qdrant's response shape at all.
     """
     client = _get_client()
+
+    if score_threshold is None:
+        score_threshold = settings.MIN_SIMILARITY_SCORE
 
     must: list[models.FieldCondition] = []
     if document_type is not None:
@@ -191,6 +204,7 @@ def search(
         query=query_vector,
         limit=limit,
         query_filter=query_filter,
+        score_threshold=score_threshold,
         with_payload=True,
     )
 
