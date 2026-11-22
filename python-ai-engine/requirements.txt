@@ -37,5 +37,5 @@ numpy>=2.0
 # --- LLM SDK (reserved for app/rag/rag_service.py, Phase 2) ---
 google-genai>=1.0
 
-# --- Tests ---
-pytest>=8.0
+# --- Web UI (ui.py) ---
+streamlit>=1.30

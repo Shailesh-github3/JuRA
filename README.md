@@ -174,6 +174,19 @@ python scripts/evaluate_retrieval.py          # Recall@1/3/5 and MRR, two catego
 python scripts/evaluate_retrieval.py --json   # machine-readable output
 ```
 
+### 8. Run the Streamlit demo UI (optional)
+
+```bash
+cd python-ai-engine
+streamlit run ui.py
+# Opens http://localhost:8501
+```
+
+The UI drives the full pipeline in-process (hybrid + cross-encoder retrieval,
+Gemini generation, deterministic citation verification, and the missing-fact
+clarification loop). Requires the Qdrant collection to be ingested first
+(step 4) and `GOOGLE_API_KEY` in `.env` for grounded answers.
+
 ### Backend environment variables
 
 Configure via environment variables or edit `backend/src/main/resources/application.yml`:
